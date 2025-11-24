@@ -16,6 +16,13 @@ def get-files [pattern = "**/*.md"] {
     ls **/* | where type == file | where name ends-with .md
 }
 
+# Tab completion for note names
+def complete-note [] {
+    get-files | get name | each {|name| 
+        {value: ($name | str replace '.md' ''), description: $name}
+    }
+}
+
 # Set the vault path environment variable
 export def --env "nun set-vault" [
     path: string # Path to the Obsidian vault
@@ -55,11 +62,16 @@ export def "nun new" [
 
     $content | default "" | save $path
     print $"Created note: ($path)"
+    
+    # If no content was provided, open the note in the default application
+    if ($content == null) {
+        start $path
+    }
 }
 
 # Read a note's content
 export def "nun read" [
-    name: string # Name of the note to read
+    name: string@complete-note # Name of the note to read
 ] {
     let vault = get-vault-path
     let filename = if ($name | str ends-with ".md") { $name } else { $name + ".md" }
@@ -104,7 +116,7 @@ export def "nun search" [
 
 # Append text to a note
 export def "nun append" [
-    name: string     # Name of the note
+    name: string@complete-note     # Name of the note
     content: string  # Content to append
 ] {
     let vault = get-vault-path
@@ -139,7 +151,7 @@ export def "nun append" [
 
 # Open a note in the default application (usually Obsidian if configured)
 export def "nun open" [
-    name?: string # Optional note name to open. If omitted, opens the vault folder.
+    name?: string@complete-note # Optional note name to open. If omitted, opens the vault folder.
 ] {
     let vault = get-vault-path
     
