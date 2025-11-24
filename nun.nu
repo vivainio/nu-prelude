@@ -111,7 +111,7 @@ export def "nun search" [
                 path: ($vault | path join $file.name)
             }
         }
-    } | flatten
+    } | compact
 }
 
 # Append text to a note
@@ -178,4 +178,24 @@ export def "nun open" [
     } else {
         start ($matches | first | get name)
     }
+}
+
+# Open today's journal file
+export def "nunn" [] {
+    let vault = get-vault-path
+    let today = (date now | format date "%Y-%m-%d")
+    let journal_path = ($vault | path join "journals" $"($today).md")
+    
+    # Create the journal file if it doesn't exist
+    if not ($journal_path | path exists) {
+        let journals_dir = ($vault | path join "journals")
+        if not ($journals_dir | path exists) {
+            mkdir $journals_dir
+        }
+        "" | save $journal_path
+        print $"Created journal: ($journal_path)"
+    }
+    
+    # Open the journal file
+    start $journal_path
 }
