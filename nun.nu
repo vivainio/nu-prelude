@@ -68,8 +68,7 @@ export def "nun read" [
 
     # Try exact match first
     if ($filename | path exists) {
-        open $filename
-        return
+        return (open $filename)
     }
 
     # Search recursively
