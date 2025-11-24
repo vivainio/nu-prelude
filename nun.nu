@@ -181,7 +181,10 @@ export def "nun open" [
 }
 
 # Open today's journal file
-export def "nunn" [] {
+# If called with arguments, append them to today's note without opening
+export def --wrapped "nunn" [
+    ...rest: string  # Optional content to append to today's note
+] {
     let vault = get-vault-path
     let today = (date now | format date "%Y-%m-%d")
     let journal_path = ($vault | path join "journals" $"($today).md")
@@ -196,6 +199,46 @@ export def "nunn" [] {
         print $"Created journal: ($journal_path)"
     }
     
+    # If content provided, append it to the note
+    if ($rest | length) > 0 {
+        let content = ($rest | str join " ")
+        $"\n($content)" | save --append $journal_path
+        print $"Appended to ($journal_path)"
+        return
+    }
+    
     # Open the journal file
     start $journal_path
+}
+
+# Show the 7 most recent journal entries
+export def "nun journal" [] {
+    let vault = get-vault-path
+    let journals_dir = ($vault | path join "journals")
+    
+    if not ($journals_dir | path exists) {
+        print "No journals directory found"
+        return
+    }
+    
+    let entries = (
+        ls $journals_dir 
+        | where name ends-with ".md"
+        | sort-by modified --reverse
+        | first 7
+    )
+    
+    if ($entries | is-empty) {
+        print "No journal entries found"
+        return
+    }
+    
+    $entries | each {|entry|
+        let date = ($entry.name | str replace ".md" "")
+        let content = (open $entry.name)
+        
+        print $"=== ($date) ==="
+        print $content
+        print ""
+    }
 }
