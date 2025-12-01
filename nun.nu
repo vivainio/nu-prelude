@@ -1,12 +1,32 @@
 # nun.nu - Obsidian Vault Manager
 # 
 # This module provides tools to interact with Obsidian vaults.
-# Set the environment variable NUN_VAULT_PATH to your vault's root directory.
+# Vault paths are stored persistently using std-rfc/kv.
 # Defaults to "C:/r/vaults/ville".
 
-# Helper to get the vault path.
+use std-rfc/kv *
+
+# Helper to get the vault path from persistent storage.
 def get-vault-path [] {
-    $env.NUN_VAULT_PATH? | default "C:/r/vaults/ville"
+    let path = (kv get "nun.current-vault")
+    
+    if $path == null {
+        "C:/r/vaults/ville"
+    } else {
+        $path
+    }
+}
+
+# Helper to get the journal vault path from persistent storage.
+# Falls back to the main vault if not set separately.
+def get-journal-vault-path [] {
+    let path = (kv get "nun.journal-vault")
+    
+    if $path == null {
+        get-vault-path
+    } else {
+        $path
+    }
 }
 
 # Helper to get all markdown files in the vault
@@ -18,21 +38,44 @@ def get-files [pattern = "**/*.md"] {
 
 # Tab completion for note names
 def complete-note [] {
-    get-files | get name | each {|name| 
+    get-files | get name | where { |name| not ($name | str starts-with "journals/") and not ($name | str starts-with "journals\\") } | each {|name| 
         {value: ($name | str replace '.md' ''), description: $name}
     }
 }
 
-# Set the vault path environment variable
-export def --env "nun set-vault" [
-    path: string # Path to the Obsidian vault
+# Tab completion for top-level directories in vault
+def complete-vault-dirs [] {
+    let vault = get-vault-path
+    cd $vault
+    let dirs = (try { ls | where type == dir | get name } catch { [] })
+    
+    $dirs | each {|dir|
+        let dir_name = ($dir | path basename)
+        {value: $dir_name, description: $dir_name}
+    }
+}
+
+# Set the current vault path persistently
+export def "nun set-vault" [
+    path: string                # Path to the Obsidian vault
+    --journal                   # Set as journal vault instead of main vault
 ] {
     let expanded_path = ($path | path expand)
     if not ($expanded_path | path exists) {
         print $"Warning: Path '($expanded_path)' does not exist."
     }
-    $env.NUN_VAULT_PATH = $expanded_path
-    print $"Vault path set to: ($expanded_path)"
+    
+    if $journal {
+        let path_parts = ($expanded_path | path split)
+        if not ($path_parts | any {|part| $part == "journals"}) {
+            print $"Warning: Journal vault path does not contain 'journals' as a path element. Consider using a path like 'C:/vaults/my-vault/journals'."
+        }
+        kv set "nun.journal-vault" $expanded_path
+        print $"Journal vault path set to: ($expanded_path)"
+    } else {
+        kv set "nun.current-vault" $expanded_path
+        print $"Main vault path set to: ($expanded_path)"
+    }
 }
 
 # List all notes in the vault
@@ -41,9 +84,10 @@ export def "nun list" [] {
 }
 
 # Create a new note
-# Usage: nun new "My Note" --content "# My Note\n\nContent here"
+# Usage: nun new "My Note" or nun new "folder/My Note"
+# Optional: --content to set initial content
 export def "nun new" [
-    name: string       # Name of the note (with or without .md extension)
+    name: string@complete-vault-dirs       # Name of the note (with or without .md extension, can include path)
     --content: string  # Initial content of the note
 ] {
     let vault = get-vault-path
@@ -54,10 +98,10 @@ export def "nun new" [
         error make { msg: $"Note '($filename)' already exists at ($path)" }
     }
     
-    # Ensure directory exists if the name contains a path
-    let dir = ($path | path dirname)
-    if not ($dir | path exists) {
-        mkdir $dir
+    # Ensure directory exists
+    let dir_path = ($path | path dirname)
+    if not ($dir_path | path exists) {
+        mkdir $dir_path
     }
 
     $content | default "" | save $path
@@ -185,16 +229,17 @@ export def "nun open" [
 export def --wrapped "nunn" [
     ...rest: string  # Optional content to append to today's note
 ] {
-    let vault = get-vault-path
+    let journal_path_dir = get-journal-vault-path
     let today = (date now | format date "%Y-%m-%d")
-    let journal_path = ($vault | path join "journals" $"($today).md")
+    let journal_path = ($journal_path_dir | path join $"($today).md")
+    
+    # Create the journal directory if it doesn't exist
+    if not ($journal_path_dir | path exists) {
+        mkdir $journal_path_dir
+    }
     
     # Create the journal file if it doesn't exist
     if not ($journal_path | path exists) {
-        let journals_dir = ($vault | path join "journals")
-        if not ($journals_dir | path exists) {
-            mkdir $journals_dir
-        }
         "" | save $journal_path
         print $"Created journal: ($journal_path)"
     }
@@ -213,19 +258,18 @@ export def --wrapped "nunn" [
 
 # Show the 7 most recent journal entries
 export def "nun journal" [] {
-    let vault = get-vault-path
-    let journals_dir = ($vault | path join "journals")
+    let journal_path_dir = get-journal-vault-path
     
-    if not ($journals_dir | path exists) {
-        print "No journals directory found"
+    if not ($journal_path_dir | path exists) {
+        print "No journal directory found"
         return
     }
     
     let entries = (
-        ls $journals_dir 
+        ls $journal_path_dir 
         | where name ends-with ".md"
-        | sort-by modified --reverse
-        | first 7
+        | sort-by name
+        | last 7
     )
     
     if ($entries | is-empty) {
