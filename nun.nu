@@ -18,12 +18,14 @@ def get-vault-path [] {
 }
 
 # Helper to get the journal vault path from persistent storage.
-# Falls back to the main vault if not set separately.
+# Requires explicit configuration - does not fall back to main vault.
 def get-journal-vault-path [] {
     let path = (kv get "nun.journal-vault")
     
     if $path == null {
-        get-vault-path
+        error make { 
+            msg: "Journal vault not configured. Set it with: nun set-vault <path> --journal"
+        }
     } else {
         $path
     }
