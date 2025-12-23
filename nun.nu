@@ -8,7 +8,7 @@ use std-rfc/kv *
 
 # Helper to get the vault path from persistent storage.
 def get-vault-path [] {
-    let path = (kv get "nun.current-vault")
+    let path = (kv get --table nun --universal "nun.current-vault")
     
     if $path == null {
         "C:/r/vaults/ville"
@@ -20,7 +20,7 @@ def get-vault-path [] {
 # Helper to get the journal vault path from persistent storage.
 # Requires explicit configuration - does not fall back to main vault.
 def get-journal-vault-path [] {
-    let path = (kv get "nun.journal-vault")
+    let path = (kv get --table nun --universal "nun.journal-vault")
     
     if $path == null {
         error make { 
@@ -72,10 +72,10 @@ export def "nun set-vault" [
         if not ($path_parts | any {|part| $part == "journals"}) {
             print $"Warning: Journal vault path does not contain 'journals' as a path element. Consider using a path like 'C:/vaults/my-vault/journals'."
         }
-        kv set "nun.journal-vault" $expanded_path
+        kv set --table nun --universal "nun.journal-vault" $expanded_path
         print $"Journal vault path set to: ($expanded_path)"
     } else {
-        kv set "nun.current-vault" $expanded_path
+        kv set --table nun --universal "nun.current-vault" $expanded_path
         print $"Main vault path set to: ($expanded_path)"
     }
 }
