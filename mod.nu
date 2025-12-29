@@ -5,4 +5,5 @@
 
 export use sets.nu *
 export use nun.nu *
-export use jwt.nu * 
+export use jwt.nu *
+export use git-helpers.nu *

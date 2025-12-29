@@ -19,7 +19,6 @@
 #    format = "[$env_value](green) "
 
 # Find a file/directory by searching up from current directory
-# Returns the full path if found, null otherwise
 export def find-in-parents [name: string] {
     mut dir = pwd
     loop {
@@ -35,8 +34,7 @@ export def find-in-parents [name: string] {
     }
 }
 
-# Fast way to get the current git branch name
-# Reads directly from .git directory, supports worktrees
+# Fast git branch name lookup (reads .git directly, supports worktrees)
 export def fast-get-git-branch [] {
     let git_path = find-in-parents ".git"
     if $git_path == null {
