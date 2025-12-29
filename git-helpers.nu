@@ -1,4 +1,22 @@
 # Git helper functions for Nushell
+#
+# Usage with Starship prompt:
+#
+# 1. In env.nu, source this file and set GIT_BRANCH in PROMPT_COMMAND:
+#
+#    source ~/path/to/git-helpers.nu
+#
+#    $env.PROMPT_COMMAND = {||
+#        $env.GIT_BRANCH = try { fast-get-git-branch } catch { "" }
+#    }
+#
+# 2. In starship.toml, display the env var and disable built-in git_branch:
+#
+#    [git_branch]
+#    disabled = true
+#
+#    [env_var.GIT_BRANCH]
+#    format = "[$env_value](green) "
 
 # Find a file/directory by searching up from current directory
 # Returns the full path if found, null otherwise
