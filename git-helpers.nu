@@ -34,6 +34,15 @@ export def find-in-parents [name: string] {
     }
 }
 
+# Get the git repository root directory, or null if not in a repo
+export def get-git-root [] {
+    let git_path = find-in-parents ".git"
+    if $git_path == null {
+        return null
+    }
+    $git_path | path dirname
+}
+
 # Fast git branch name lookup (reads .git directly, supports worktrees)
 export def fast-get-git-branch [] {
     let git_path = find-in-parents ".git"
