@@ -24,7 +24,13 @@ $env.PROMPT_COMMAND = {||
     } else {
         $env.PWD | str replace $nu.home-path "~"
     }
-    let icon = if ($env.WSL_DISTRO_NAME? != null) { "🐧 " } else { "" }
+    let icon = if $env.PWD =~ '^/mnt/[a-z]($|/)' {
+        "⊞ "
+    } else if ($env.WSL_DISTRO_NAME? != null) {
+        "🐧 "
+    } else {
+        ""
+    }
     $"(ansi cyan)($icon)(ansi reset)($dir)(get-venv-tag)\n❯ "
 }
 
