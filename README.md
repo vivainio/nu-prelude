@@ -1,6 +1,6 @@
 # nu-prelude
 
-A collection of useful Nushell modules including set operations, git helpers, JWT utilities, an Obsidian vault manager, and a native prompt.
+A collection of useful Nushell modules including set operations, git helpers, JWT utilities, an Obsidian vault manager, environment activation, tmux workspaces, and a native prompt.
 
 ## Modules
 
@@ -40,6 +40,69 @@ Tools for interacting with Obsidian vaults from the command line:
 - `nun journal` - Show recent journal entries
 - `nunn` - Quick access to today's journal
 
+### act.nu - Environment Activation
+
+Activate project environments from `env.nuon` files. Searches up the directory tree and loads environment variables.
+
+```nushell
+use ~/nu-prelude/act.nu
+act              # activate environment
+act -q           # quiet mode
+act -w dev       # activate + start "dev" workspace
+act -w all       # start all workspaces
+act -w dev -n    # start workspace without attaching
+```
+
+Example `env.nuon`:
+
+```nuon
+{
+    name: "myproject"
+    venv: ".venv"
+    path: ["./scripts", "node_modules/.bin"]
+    dotenv: [".env", ".env.local"]
+    env: {
+        DATABASE_URL: "postgres://localhost/mydb"
+        DEBUG: "true"
+    }
+    tmux_workspace: {
+        dev: [
+            [api,      "./api",      "cargo watch -x run"]
+            [frontend, "./frontend", "npm run dev"]
+        ]
+        monitoring: [
+            [logs,    ".",  "tail -f logs/*.log", {restart: true}]
+            [metrics, ".",  "htop"]
+        ]
+    }
+}
+```
+
+Keys:
+- `name` - Project name prefix for tmux sessions (defaults to directory name)
+- `venv` - Activate a Python virtual environment
+- `path` - Prepend directories to PATH
+- `dotenv` - Source `.env` file(s) (string or list)
+- `env` - Set environment variables
+- `tmux_workspace` - Named workspaces, each with services `[name, dir, cmd, {options}]`
+
+### tmux-util.nu - Tmux Workspaces
+
+Create multi-window tmux development environments. Used by `act -w` or standalone:
+
+```nushell
+use ~/nu-prelude/tmux-util.nu *
+
+tmux-workspace "myproject" [
+    [api,      ~/projects/myproject/api,      "cargo watch -x run"]
+    [frontend, ~/projects/myproject/frontend, "npm run dev"]
+    [logs,     ~/projects/myproject,          "tail -f logs/*.log", {restart: true}]
+]
+```
+
+- `tmux-workspace` - Create a tmux session with multiple named windows
+- `tmux-workspace-enter` - Entry point called when a workspace window opens
+
 ## Installation
 
 ### nuship (Prompt)
@@ -65,6 +128,8 @@ use ~/nu-prelude/sets.nu *
 use ~/nu-prelude/jwt.nu *
 use ~/nu-prelude/nun.nu *
 use ~/nu-prelude/git-helpers.nu *
+use ~/nu-prelude/act.nu
+use ~/nu-prelude/tmux-util.nu *
 ```
 
 ## License
