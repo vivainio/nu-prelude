@@ -8,6 +8,8 @@ export def tmux-workspace-enter [session?: string, window?: string] {
         let config = (tmux show-environment -t $session TMUX_WORKSPACE_CONFIG | str replace 'TMUX_WORKSPACE_CONFIG=' '' | from nuon)
         let svc = $config | where {|s| $s.0 == $window } | first
         if ($svc | is-not-empty) {
+            print -n $"\e]2;($svc.0)\e\\"
+            cd ($svc.1 | path expand)
             run-external ($svc.2 | split row ' ' | first) ...($svc.2 | split row ' ' | skip 1)
         }
     }
@@ -39,7 +41,7 @@ export def tmux-workspace [
     for idx in 0..<($services | length) {
         let svc = $services | get $idx
         let win_name = $svc.0
-        let dir = $svc.1
+        let dir = $svc.1 | path expand
         let cmd = $svc.2
         let win_idx = $base_index + $idx
         let win_target = $"($name):($win_idx)"
@@ -49,8 +51,6 @@ export def tmux-workspace [
         } else {
             tmux new-window -t $name -c $dir -n $win_name
         }
-        tmux set-window-option -t $win_target allow-rename off
-        tmux set-window-option -t $win_target automatic-rename off
         tmux send-keys -t $win_target $"tmux-workspace-enter ($name) ($win_name)" C-m
     }
 
