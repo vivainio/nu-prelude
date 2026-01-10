@@ -1,5 +1,18 @@
 # tmux-util.nu - Tmux workspace helper
 
+# Called when entering a tmux workspace window
+export def tmux-workspace-enter [session?: string, window?: string] {
+    $env.config.shell_integration.osc2 = false
+
+    if ($session | is-not-empty) and ($window | is-not-empty) {
+        let config = (tmux show-environment -t $session TMUX_WORKSPACE_CONFIG | str replace 'TMUX_WORKSPACE_CONFIG=' '' | from nuon)
+        let svc = $config | where {|s| $s.0 == $window } | first
+        if ($svc | is-not-empty) {
+            run-external ($svc.2 | split row ' ' | first) ...($svc.2 | split row ' ' | skip 1)
+        }
+    }
+}
+
 # Start a tmux workspace with multiple services
 export def tmux-workspace [
     name: string                # Session name
@@ -32,12 +45,13 @@ export def tmux-workspace [
         let win_target = $"($name):($win_idx)"
         if $idx == 0 {
             tmux new-session -d -s $name -c $dir -n $win_name
+            tmux set-environment -t $name TMUX_WORKSPACE_CONFIG ($services | to nuon)
         } else {
             tmux new-window -t $name -c $dir -n $win_name
         }
         tmux set-window-option -t $win_target allow-rename off
         tmux set-window-option -t $win_target automatic-rename off
-        tmux send-keys -t $win_target $cmd C-m
+        tmux send-keys -t $win_target $"tmux-workspace-enter ($name) ($win_name)" C-m
     }
 
     tmux select-window -t $"($name):($base_index)"
