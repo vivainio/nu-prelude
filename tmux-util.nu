@@ -1,5 +1,35 @@
 # tmux-util.nu - Tmux workspace helper
 
+# Start a tmux session named after current directory with claude
+export def wss [
+    name?: string  # Optional session name (defaults to current directory name)
+] {
+    let name = ($name | default ($env.PWD | path basename))
+    let exists = (tmux has-session -t $name | complete).exit_code == 0
+
+    if $exists {
+        if ($env.TMUX? | is-not-empty) {
+            tmux switch-client -t $name
+        } else {
+            tmux attach-session -t $name
+        }
+        return
+    }
+
+    # Create config for the single-window workspace
+    let config = [{name: $name, dir: $env.PWD, cmd: "claude"}]
+
+    tmux new-session -d -s $name -c $env.PWD -n $name
+    tmux set-environment -t $name TMUX_WORKSPACE_CONFIG ($config | to nuon)
+    tmux send-keys -t $name $"tmux-workspace-enter ($name) ($name)" C-m
+
+    if ($env.TMUX? | is-not-empty) {
+        tmux switch-client -t $name
+    } else {
+        tmux attach-session -t $name
+    }
+}
+
 # Called when entering a tmux workspace window
 export def tmux-workspace-enter [session?: string, window?: string] {
     $env.config.shell_integration.osc2 = false
@@ -10,16 +40,7 @@ export def tmux-workspace-enter [session?: string, window?: string] {
         if ($svc | is-not-empty) {
             print -n $"\e]2;($svc.name)\e\\"
             cd $svc.dir
-            let args = $svc.cmd | split row ' '
-            if ($svc.restart? | default false) {
-                loop {
-                    run-external ($args | first) ...($args | skip 1)
-                    print "Restarting..."
-                    sleep 1sec
-                }
-            } else {
-                run-external ($args | first) ...($args | skip 1)
-            }
+            run-external ($svc.cmd | split row ' ' | first) ...($svc.cmd | split row ' ' | skip 1)
         }
     }
 }
@@ -48,14 +69,8 @@ export def tmux-workspace [
     let base_index = (tmux show-option -gv base-index | into int)
 
     # Convert input lists to records with expanded paths
-    # Format: [name, dir, cmd] or [name, dir, cmd, {restart: true, ...}]
     let config = $services | each {|svc|
-        let base = {name: $svc.0, dir: ($svc.1 | path expand), cmd: $svc.2}
-        if ($svc | length) > 3 {
-            $base | merge $svc.3
-        } else {
-            $base
-        }
+        {name: $svc.0, dir: ($svc.1 | path expand), cmd: $svc.2}
     }
 
     for idx in 0..<($config | length) {
