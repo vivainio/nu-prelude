@@ -40,7 +40,17 @@ export def tmux-workspace-enter [session?: string, window?: string] {
         if ($svc | is-not-empty) {
             print -n $"\e]2;($svc.name)\e\\"
             cd $svc.dir
-            run-external ($svc.cmd | split row ' ' | first) ...($svc.cmd | split row ' ' | skip 1)
+            if $svc.cmd == "claude" {
+                # Continue last conversation if one exists
+                let has_conversation = (do { claude conversation list --limit 1 } | complete).stdout | str trim | is-not-empty
+                if $has_conversation {
+                    claude --continue
+                } else {
+                    claude
+                }
+            } else {
+                run-external ($svc.cmd | split row ' ' | first) ...($svc.cmd | split row ' ' | skip 1)
+            }
         }
     }
 }
