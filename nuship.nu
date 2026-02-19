@@ -12,7 +12,7 @@ def get-venv-tag [] {
     } else {
         $env.VIRTUAL_ENV
     }
-    $" (ansi yellow)🐍 ($venv_path | str replace $nu.home-path '~')(ansi reset)"
+    $" (ansi yellow)🐍 ($venv_path | str replace $nu.home-dir '~')(ansi reset)"
 }
 
 $env.PROMPT_COMMAND = {||
@@ -22,7 +22,7 @@ $env.PROMPT_COMMAND = {||
         let relative = $env.PWD | str replace $git_root ""
         $"($repo_name)($relative)"
     } else {
-        $env.PWD | str replace $nu.home-path "~"
+        $env.PWD | str replace $nu.home-dir "~"
     }
     let icon = if $env.PWD =~ '^/mnt/[a-z]($|/)' {
         "⊞ "
